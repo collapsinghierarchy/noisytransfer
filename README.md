@@ -42,7 +42,7 @@ Clone the repo and type `go mod tidy` to pull the dependencies.
 ## Running the Server
 
 ```bash
-cd noisybufferd
+cd noisytransferd
 go run main.go
 ```
 
