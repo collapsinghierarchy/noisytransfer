@@ -16,8 +16,7 @@ func main() {
 	root := http.NewServeMux()
 	root.Handle("/api/", http.StripPrefix("/api", handler.SetupAPIRoutes(svc)))
 	root.HandleFunc("/ws", handler.WSHandler(hub))
-	// root.Handle("/", staticHandler()) // optional UI
 
-	log.Println("noisypairing listening on :1234")
+	log.Println("noisytransfer listening on :1234")
 	log.Fatal(http.ListenAndServe(":1234", root))
 }

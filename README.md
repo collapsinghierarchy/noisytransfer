@@ -1,6 +1,9 @@
 # noisytransfer
 noisytransfer – ultra‑light, post‑quantum file beaming over a single share‑link. Works with short authentication strings (SAS) and a commit then reveal to counteract MitM-Attacks by the server.
 
+
+> **Status:** early WIP — Breaking changes every week.
+
 ## ✨ What it is
 
 * **One–click send link** – pick any file in your browser and get a short URL (`https://noisy.t/abc123`).  
