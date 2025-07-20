@@ -1,4 +1,4 @@
-# Minimal WebSocket Backend
+# Noisytransfer -- Minimal WebSocket Backend
 
 This repository provides a minimal Go backend for a two‑peer WebSocket communication. It establishes rooms based on a UUID `appID`, accepts only two connections per room, and broadcasts messages directly between peers. Noisytransfer is used for e2ee synchronous transfer of data in the [noisytransfer-app](https://github.com/collapsinghierarchy/noisytransferapp).
 
