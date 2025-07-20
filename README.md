@@ -1,82 +1,78 @@
-# noisytransfer
-noisytransfer – ultra‑light, post‑quantum file beaming over a single share‑link. Works with short authentication strings (SAS) and a commit then reveal to counteract MitM-Attacks by the server.
+# Minimal WebSocket Backend
 
+This repository provides a minimal Go backend for a two‑peer WebSocket communication. It establishes rooms based on a UUID `appID`, accepts only two connections per room, and broadcasts messages directly between peers. Noisytransfer is used for e2ee synchronous transfer of data in the [noisytransfer-app](https://github.com/collapsinghierarchy/noisytransferapp).
 
-> **Status:** early WIP — Breaking changes every week.
+## Features
 
-## ✨ What it is
+* **Room management**: Map connections to `appID` rooms (max 2 peers).
+* **UUID validation**: Reject invalid `appID` parameters.
+* **Origin whitelist**: Only allow WebSocket upgrades from configured origins.
+* **Direct broadcast**: Relay text messages from one peer to the other with no intermediate queue.
 
-* **One–click send link** – pick any file in your browser and get a short URL (`https://noisy.t/abc123`).  
-  Open the link on any other device and the file streams **end‑to‑end‑encrypted** directly—never touches disk on the relay.
+## Repository Structure
 
-* **File‑request link** – generate the reverse URL (`https://noisy.t/upload/xyz987`).  
-  Give it to somebody; whatever they drop in is pushed straight back to **you**, encrypted with the same hybrid Kyber + X25519 HPKE.
-
-* **Ephemeral by design** – everything lives only in memory; when both tabs close, the relay forgets.  
-  No accounts, no quota, no GDPR headaches.
-
-* **Post‑quantum ready** – hybrid **ML‑KEM‑768 + X25519** key exchange, ChaCha20‑Poly1305 chunks.
-
-* **Zero install** – ships as a tiny PWA (Progressive Web App) you can “Add to Home Screen” or run in any desktop browser.
-
-
-## 🛠 How it works
-
-1. **Browser A** chooses a file → creates random `channelID` → opens `wss://relay/ws?appID=<ID>`.
-2. **Share‑link** `https://noisy.t/get/<ID>` is shown.
-3. **Browser B** visits the link → joins the same room.
-4. Live HPKE **commit‑then‑reveal + 6‑digit SAS** stops MitM.
-5. File is chunked (64 kB), each chunk HPKE‑sealed and streamed through the relay.
-6. Relay code = 300 lines of Go (`service`, `hub`, `handler`, `main`) – fully in‑memory, cap two sockets.
-
-
-
-## 🌱 Road‑map
-
-| Stage | Status |
-|-------|--------|
-| Browser‑to‑browser link (send & request) | ✅ working prototype |
-| PWA packaging (manifest, service‑worker) | ◽ in progress |
-| Android share‑sheet target | ◽ |
-| Desktop shell helpers (Explorer/Finder “Send with noisytransfer”) | ◽ |
-| Optional sealed‑nonce mode (zero SAS UI) | ◽ |
-| Chunk resume / multi‑GB restart | ◽ |
-
-
-
-## ⚡ Bootstrapping the PWA
-
-You don’t need a heavy front‑end stack, but a helper that outputs **manifest.json + service‑worker** and gives you a live‑reload dev server saves hours.
-
-| Tool | Why it’s perfect for *noisytransfer* | One‑liner to start |
-|------|--------------------------------------|-------------------|
-| **PWABuilder** | Generates manifest, icons, and a TypeScript Workbox SW from your existing HTML in 30 seconds; no framework lock‑in. | Paste `http://localhost:8081` into <https://www.pwabuilder.com> & download bundle. |
-| **Vite + `vite-plugin-pwa`** | React‑level DX without React. Fast HMR; plugin injects SW/manifest automatically. | `npm create vite@latest noisy-ui` → *vanilla* → `npm i -D vite-plugin-pwa` |
-| **Svelte Kit** + `@sveltejs/pwa` | Tiny, reactive component DSL; PWA baked in. | `npm create svelte@latest noisytransfer` |
-| **Quasar CLI** (Vue) | Material‑styled widgets, dark‑mode; PWA flag toggled at init. | `quasar create noisytransfer --kit pwa` |
-
-*Recommendation*: start with **PWABuilder** to get a running installable PWA quickly, then move to **Vite + plugin‑pwa** once you want hot‑reload and TypeScript support.
-
-
-
-## 📂 Repo structure
+```text
+├── hub.go      # Core Hub implementation (room registration, broadcast)
+├── handler.go  # HTTP handler for WebSocket endpoint (/ws)
+└── main.go     # Application entry point (wire Hub + handler)
 ```
-/cmd/server/ Go main + handlers (in‑memory relay)
-/web/ index.html, send.html, request.html, app.js, style.css
-/web/sw.js (generated) service‑worker cache logic
-/web/manifest.json (generated) PWA manifest
-/README.md ← you are here
-```
+
+## Prerequisites
+
+* Go 1.24.3
+
+## Installation & Setup
+
+1. **Clone the repo**
+Clone the repo and type `go mod tidy` to pull the dependencies.
+
+2. **Configure allowed origins**
+
+   In `main.go`, update the `allowedOrigins` slice with the domains you trust:
+
+   ```go
+   allowed := []string{
+     "https://app.example.com",
+     "https://dashboard.example.com",
+   }
+   ```
+  If you want to integrate the endpoints into your back-end, then simply use the main.go as an example and integrate it in the same way.
+
+
+## Running the Server
 
 ```bash
-git clone https://github.com/yourname/noisytransfer
-cd noisytransfer/cmd/server
-go run .
-
-# in another terminal (UI dev)
-cd ../web
-npm i
-npm run dev     # vite dev server on :5173
-
-Open http://localhost:5173/send.html, pick a file, copy the link to another browser tab—done!
+cd noisybufferd
+go run main.go
 ```
+
+By default, the server listens on port `1234`. You can modify `main.go` to change the address.
+
+## Usage
+
+On the client side (e.g. your Quasar app), open a WebSocket connection:
+
+```js
+const ws = new WebSocket(
+  `wss://api.example.com/ws?appID=${appId}`
+);
+
+ws.onmessage = event => {
+  const msg = JSON.parse(event.data);
+  // process incoming message
+};
+
+// Send a message to the peer:
+ws.send(JSON.stringify({ type: 'data', payload: '...' }));
+```
+
+* **Handshake**: The server upgrades the HTTP GET `/ws?appID=…` request to WebSocket after origin & UUID checks.
+* **Broadcast**: Messages sent by one connection are forwarded to the other peer in the same `appID` room.
+
+## Notes
+
+* Only **text** frames are supported. Binary messages are ignored.
+* If a room already has two peers, additional connections receive an error and are closed.
+
+# Have fun!
+

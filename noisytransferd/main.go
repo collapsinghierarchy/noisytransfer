@@ -1,4 +1,3 @@
-// main.go
 package main
 
 import (
@@ -7,35 +6,26 @@ import (
 
 	"github.com/collapsinghierarchy/noisytransfer/handler"
 	"github.com/collapsinghierarchy/noisytransfer/hub"
-	"github.com/collapsinghierarchy/noisytransfer/service"
 )
 
 func main() {
-	// 1) Instantiate in‑memory storage & pub/pull service
-	svc := service.NewService() // Service keeps keys & message blobs
+	// Instantiate hub
+	h := hub.NewHub()
 
-	// 2) Create a Hub with a 32‑message buffer per connection
-	h := hub.NewHub(32)
-
-	// 3) Define which Origins you’ll accept WebSocket connections from
+	// Define allowed origins
 	allowed := []string{
-		"localhost:1234",
+		"http://localhost:9200",
 	}
 
-	// 4) Build your WS handler (with strict origin check & buffered queues)
-	wsHandler := handler.NewWSHandler(h, allowed)
+	// Build WS handler
+	ws := handler.NewWSHandler(h, allowed)
 
-	// 5) Wire up HTTP routes
+	// Setup HTTP mux
 	mux := http.NewServeMux()
-	mux.Handle("/api/",
-		http.StripPrefix("/api", handler.SetupAPIRoutes(svc)),
-	) // /api/key, /api/pub, /api/push, /api/pull
-	mux.Handle("/ws", wsHandler) // WebSocket endpoint
+	mux.Handle("/ws", ws)
 
-	// 6) Start the server
+	// Start server
 	addr := ":1234"
-	log.Printf("Listening on %s …", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
-	}
+	log.Printf("Listening on %s…", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
