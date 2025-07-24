@@ -42,6 +42,12 @@ func NewWSHandler(h *hub.Hub, allowedOrigins []string) http.Handler {
 			conn.Close()
 			return
 		}
+
+		// If this is the second peer, let both know they can start the HPKE flow
+		if h.RoomSize(appID) == 2 {
+			h.BroadcastEvent(appID, map[string]string{"type": "room_full"})
+		}
+
 		defer func() {
 			h.Unregister(appID, conn)
 			conn.Close()

@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 
@@ -61,5 +62,24 @@ func (h *Hub) Broadcast(appID string, sender *websocket.Conn, msg []byte) {
 			conn.Close()
 			h.Unregister(appID, conn)
 		}
+	}
+}
+
+// RoomSize returns how many peers are in appID.
+func (h *Hub) RoomSize(appID string) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.rooms[appID])
+}
+
+// BroadcastEvent marshals 'evt' as JSON and sends it to all peers.
+func (h *Hub) BroadcastEvent(appID string, evt interface{}) {
+	h.mu.Lock()
+	conns := h.rooms[appID]
+	h.mu.Unlock()
+
+	data, _ := json.Marshal(evt)
+	for c := range conns {
+		_ = c.WriteMessage(websocket.TextMessage, data)
 	}
 }
