@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -57,20 +58,22 @@ func NewOriginChecker(allowedOrigins []string) func(r *http.Request) bool {
 
 // NewWSHandler returns an http.Handler serving a single /ws endpoint.
 func NewWSHandler(h *hub.Hub, allowedOrigins []string) http.Handler {
-	// build origin lookup
-	origins := make(map[string]struct{}, len(allowedOrigins))
-	for _, o := range allowedOrigins {
-		origins[o] = struct{}{}
-	}
 
 	upgrader := websocket.Upgrader{
 		CheckOrigin: NewOriginChecker(allowedOrigins),
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("received request", r.RemoteAddr, r.RequestURI)
+
 		appID := r.URL.Query().Get("appID")
 		if _, err := uuid.Parse(appID); err != nil {
 			http.Error(w, "invalid appID", http.StatusBadRequest)
+			return
+		}
+
+		if !upgrader.CheckOrigin(r) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 
